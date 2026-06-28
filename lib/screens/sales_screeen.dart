@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:iconsax/iconsax.dart';
 import 'package:flutter_inventory/models/product.dart';
 import 'package:flutter_inventory/theme/app_theme.dart';
+import 'package:flutter_inventory/services/database_helper.dart';
 
 class SalesScreen extends StatefulWidget {
   const SalesScreen({super.key});
@@ -13,19 +14,32 @@ class SalesScreen extends StatefulWidget {
 }
 
 class _SalesScreenState extends State<SalesScreen> {
-  // Catatan: Di aplikasi nyata, data ini diambil dari Database/State Management.
-  // Untuk keperluan UI, kita gunakan mock data yang sama.
-  final List<Product> _products = [
-    Product(id: '1', sku: 'BRG001', name: 'Kopi Arabika 1kg', stock: 25, price: 120000, category: 'Minuman'),
-    Product(id: '2', sku: 'BRG002', name: 'Gula Pasir 1kg', stock: 4, price: 15000, category: 'Bahan Pokok'),
-    Product(id: '3', sku: 'BRG003', name: 'Susu UHT Full Cream', stock: 50, price: 18000, category: 'Minuman'),
-  ];
+  // 1. GANTI MOCK DATA DENGAN VARIABEL KOSONG INI
+  List<Product> _products = [];
+  bool _isLoading = true; // Indikator loading
 
-  // Keranjang belanja: Menyimpan ID Produk dan Jumlah yang dibeli
   final Map<String, int> _cart = {};
+
+  // 2. TAMBAHKAN INITSTATE UNTUK MEMANGGIL DATA SAAT HALAMAN DIBUKA
+  @override
+  void initState() {
+    super.initState();
+    _refreshProducts();
+  }
+
+  // 3. TAMBAHKAN FUNGSI _refreshProducts INI
+  Future<void> _refreshProducts() async {
+    setState(() => _isLoading = true);
+    final data = await DatabaseHelper.instance.getAllProducts();
+    setState(() {
+      _products = data;
+      _isLoading = false;
+    });
+  }
 
   // --- LOGIKA KERANJANG BELANJA ---
   void _addToCart(Product product) {
+    // ... (kode _addToCart dan ke bawahnya tetap sama)
     setState(() {
       final currentQty = _cart[product.id] ?? 0;
       if (currentQty < product.stock) {
@@ -58,13 +72,31 @@ class _SalesScreenState extends State<SalesScreen> {
     return total;
   }
 
-  void _processCheckout() {
+  // KODE DATABASE MASUK DI SINI
+  void _processCheckout() async { // <-- Tambahkan 'async' di sini
     if (_cart.isEmpty) return;
 
-    // TODO: Logika integrasi ke Database untuk mengurangi stok diletakkan di sini.
+    // 1. Kurangi stok setiap barang di keranjang dan simpan ke Database
+    for (var productId in _cart.keys) {
+      final qtyBought = _cart[productId]!; // Jumlah yang dibeli
+      final product = _products.firstWhere((p) => p.id == productId);
+      
+      final newStock = product.stock - qtyBought; // Stok berkurang
 
+      // Update produk ke SQLite
+      await DatabaseHelper.instance.updateProduct(
+        product.copyWith(stock: newStock)
+      );
+    }
+
+    // 2. Segarkan tampilan UI
+    await _refreshProducts();
+
+    // 3. Tampilkan Dialog Sukses
+    if (!mounted) return;
     showDialog(
       context: context,
+      barrierDismissible: false, // Wajib diklik tombol tutup
       builder: (context) => AlertDialog(
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
         title: const Column(
@@ -75,7 +107,7 @@ class _SalesScreenState extends State<SalesScreen> {
           ],
         ),
         content: Text(
-          'Total transaksi Rp ${_calculateTotal().toStringAsFixed(0)} telah dicatat.',
+          'Total transaksi Rp ${_calculateTotal().toStringAsFixed(0)} telah dicatat dan stok otomatis berkurang.',
           textAlign: TextAlign.center,
         ),
         actions: [
@@ -87,8 +119,8 @@ class _SalesScreenState extends State<SalesScreen> {
                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
               ),
               onPressed: () {
-                setState(() => _cart.clear()); // Kosongkan keranjang setelah bayar
-                Navigator.pop(context);
+                setState(() => _cart.clear()); // Kosongkan keranjang
+                Navigator.pop(context); // Tutup dialog sukses
               },
               child: const Text('Tutup', style: TextStyle(color: Colors.white)),
             ),
@@ -105,9 +137,14 @@ class _SalesScreenState extends State<SalesScreen> {
       appBar: AppBar(
         title: const Text('Kasir Penjualan', style: TextStyle(fontWeight: FontWeight.bold)),
       ),
-      body: ListView.builder(
-        padding: const EdgeInsets.all(20.0),
-        itemCount: _products.length,
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator(color: AppTheme.primaryColor))
+          : _products.isEmpty
+              ? const Center(child: Text('Belum ada produk untuk dijual.'))
+              : ListView.builder(
+                  padding: const EdgeInsets.all(20.0),
+                  itemCount: _products.length,
+                  // ... (kode itemBuilder di bawahnya tetap sama)
         itemBuilder: (context, index) {
           final product = _products[index];
           final qtyInCart = _cart[product.id] ?? 0;

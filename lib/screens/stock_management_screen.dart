@@ -1,9 +1,10 @@
-// lib/screens/stock_management_screen.dart
+// lib/screens/stock_management_screen.dart (Bagian Logika atas)
 
 import 'package:flutter/material.dart';
 import 'package:iconsax/iconsax.dart';
 import 'package:flutter_inventory/models/product.dart';
 import 'package:flutter_inventory/theme/app_theme.dart';
+import 'package:flutter_inventory/services/database_helper.dart'; // <-- Import file DB
 
 class StockManagementScreen extends StatefulWidget {
   const StockManagementScreen({super.key});
@@ -13,12 +14,8 @@ class StockManagementScreen extends StatefulWidget {
 }
 
 class _StockManagementScreenState extends State<StockManagementScreen> {
-  // Data simulasi (Mock Data) sebagai pengganti database lokal/cloud agar ringan
-  final List<Product> _products = [
-    Product(id: '1', sku: 'BRG001', name: 'Kopi Arabika 1kg', stock: 25, price: 120000, category: 'Minuman'),
-    Product(id: '2', sku: 'BRG002', name: 'Gula Pasir 1kg', stock: 4, price: 15000, category: 'Bahan Pokok'),
-    Product(id: '3', sku: 'BRG003', name: 'Susu UHT Full Cream', stock: 50, price: 18000, category: 'Minuman'),
-  ];
+  List<Product> _products = []; // Mulai dengan list kosong
+  bool _isLoading = true;       // Indikator loading saat mengambil data dari DB
 
   final _formKey = GlobalKey<FormState>();
   final _skuController = TextEditingController();
@@ -27,50 +24,62 @@ class _StockManagementScreenState extends State<StockManagementScreen> {
   final _priceController = TextEditingController();
   final _categoryController = TextEditingController();
 
-  // --- FUNGSI LOGIKA CRUD ---
-  
-  // 1. CREATE & UPDATE (Menambah atau Mengedit Data)
-  void _saveProduct(Product? existingProduct) {
+  @override
+  void initState() {
+    super.initState();
+    _refreshProducts(); // Ambil data saat halaman pertama kali dibuka
+  }
+
+  // Fungsi untuk menyinkronkan UI dengan Data terbaru di Database
+  Future<void> _refreshProducts() async {
+    setState(() => _isLoading = true);
+    final data = await DatabaseHelper.instance.getAllProducts();
+    setState(() {
+      _products = data;
+      _isLoading = false;
+    });
+  }
+
+  // 1. CREATE & UPDATE DATABASE
+  void _saveProduct(Product? existingProduct) async {
     if (_formKey.currentState!.validate()) {
-      setState(() {
-        if (existingProduct == null) {
-          // Aksi Tambah Baru (Create)
-          _products.add(Product(
-            id: DateTime.now().toString(),
-            sku: _skuController.text,
-            name: _nameController.text,
-            stock: int.parse(_stockController.text),
-            price: double.parse(_priceController.text),
-            category: _categoryController.text,
-          ));
-        } else {
-          // Aksi Edit (Update)
-          final index = _products.indexWhere((p) => p.id == existingProduct.id);
-          if (index != -1) {
-            _products[index] = existingProduct.copyWith(
-              sku: _skuController.text,
-              name: _nameController.text,
-              stock: int.parse(_stockController.text),
-              price: double.parse(_priceController.text),
-              category: _categoryController.text,
-            );
-          }
-        }
-      });
+      if (existingProduct == null) {
+        // Simpan data baru ke SQLite
+        await DatabaseHelper.instance.insertProduct(Product(
+          id: DateTime.now().millisecondsSinceEpoch.toString(),
+          sku: _skuController.text,
+          name: _nameController.text,
+          stock: int.parse(_stockController.text),
+          price: double.parse(_priceController.text),
+          category: _categoryController.text,
+        ));
+      } else {
+        // Update data yang sudah ada di SQLite
+        await DatabaseHelper.instance.updateProduct(existingProduct.copyWith(
+          sku: _skuController.text,
+          name: _nameController.text,
+          stock: int.parse(_stockController.text),
+          price: double.parse(_priceController.text),
+          category: _categoryController.text,
+        ));
+      }
+      
       Navigator.pop(context);
       _clearForm();
+      _refreshProducts(); // Segarkan tampilan setelah data berubah
     }
   }
 
-  // 2. DELETE (Menghapus Data)
-  void _deleteProduct(String id) {
-    setState(() {
-      _products.removeWhere((product) => product.id == id);
-    });
+  // 2. DELETE DATABASE
+  void _deleteProduct(String id) async {
+    await DatabaseHelper.instance.deleteProduct(id);
+    _refreshProducts(); // Segarkan tampilan
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Produk berhasil dihapus')),
     );
   }
+  
+  // ... (Sisa kode fungsi _clearForm, _showProductForm, dan _buildTextField tetap sama)
 
   void _clearForm() {
     _skuController.clear();
@@ -173,11 +182,15 @@ class _StockManagementScreenState extends State<StockManagementScreen> {
       appBar: AppBar(
         title: const Text('Manajemen Stok', style: TextStyle(fontWeight: FontWeight.bold)),
       ),
-      body: _products.isEmpty
-          ? const Center(child: Text('Belum ada produk. Klik tombol + untuk menambah.'))
-          : ListView.builder(
-              padding: const EdgeInsets.all(20.0),
-              itemCount: _products.length,
+      // Di dalam Widget build
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator(color: AppTheme.primaryColor))
+          : _products.isEmpty
+              ? const Center(child: Text('Belum ada produk untuk direstok.'))
+              : ListView.builder(
+                  padding: const EdgeInsets.all(20.0),
+                  itemCount: _products.length,
+                  // ... (kode itemBuilder di bawahnya tetap sama)
               itemBuilder: (context, index) {
                 final product = _products[index];
                 final isLowStock = product.stock <= 5; // Kondisi warning UX stok menipis

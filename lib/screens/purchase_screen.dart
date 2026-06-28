@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:iconsax/iconsax.dart';
 import 'package:flutter_inventory/models/product.dart';
 import 'package:flutter_inventory/theme/app_theme.dart';
+import 'package:flutter_inventory/services/database_helper.dart';
 
 class PurchaseScreen extends StatefulWidget {
   const PurchaseScreen({super.key});
@@ -13,17 +14,32 @@ class PurchaseScreen extends StatefulWidget {
 }
 
 class _PurchaseScreenState extends State<PurchaseScreen> {
-  // Data simulasi (Mock Data). Di aplikasi nyata, data ini terhubung ke Database.
-  final List<Product> _products = [
-    Product(id: '1', sku: 'BRG001', name: 'Kopi Arabika 1kg', stock: 25, price: 120000, category: 'Minuman'),
-    Product(id: '2', sku: 'BRG002', name: 'Gula Pasir 1kg', stock: 4, price: 15000, category: 'Bahan Pokok'),
-    Product(id: '3', sku: 'BRG003', name: 'Susu UHT Full Cream', stock: 50, price: 18000, category: 'Minuman'),
-  ];
+  // 1. GANTI MOCK DATA DENGAN VARIABEL KOSONG INI
+  List<Product> _products = [];
+  bool _isLoading = true; // Tambahkan indikator loading
 
   final _qtyController = TextEditingController();
 
+  // 2. TAMBAHKAN INITSTATE UNTUK MEMANGGIL DATA SAAT HALAMAN DIBUKA
+  @override
+  void initState() {
+    super.initState();
+    _refreshProducts();
+  }
+
+  // 3. TAMBAHKAN FUNGSI _refreshProducts INI
+  Future<void> _refreshProducts() async {
+    setState(() => _isLoading = true);
+    final data = await DatabaseHelper.instance.getAllProducts();
+    setState(() {
+      _products = data;
+      _isLoading = false;
+    });
+  }
+
   // --- LOGIKA PENAMBAHAN STOK (RESTOK) ---
   void _showRestockDialog(Product product) {
+    // ... (kode Anda yang bawahnya tetap sama)
     _qtyController.clear(); // Bersihkan form setiap kali dibuka
     
     showDialog(
@@ -70,24 +86,31 @@ class _PurchaseScreenState extends State<PurchaseScreen> {
               backgroundColor: AppTheme.primaryColor,
               shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
             ),
-            onPressed: () {
+            // KODE DATABASE MASUK DI SINI
+            onPressed: () async { // <-- Tambahkan 'async' di sini
               if (_qtyController.text.isNotEmpty) {
                 final qty = int.tryParse(_qtyController.text) ?? 0;
                 if (qty > 0) {
-                  setState(() {
-                    // Cari produk dan tambahkan stoknya
-                    final index = _products.indexWhere((p) => p.id == product.id);
-                    if (index != -1) {
-                      _products[index] = product.copyWith(stock: product.stock + qty);
-                    }
-                  });
-                  Navigator.pop(context);
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text('Berhasil menambah $qty stok ${product.name}'),
-                      backgroundColor: Colors.green,
-                    ),
+                  // Hitung stok baru
+                  final newStock = product.stock + qty; 
+
+                  // 1. Simpan perubahan ke Database SQLite
+                  await DatabaseHelper.instance.updateProduct(
+                    product.copyWith(stock: newStock)
                   );
+
+                  // 2. Segarkan data UI agar layar langsung berubah
+                  await _refreshProducts();
+
+                  if (context.mounted) {
+                    Navigator.pop(context); // Tutup dialog
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text('Berhasil menambah $qty stok ${product.name}'),
+                        backgroundColor: Colors.green,
+                      ),
+                    );
+                  }
                 }
               }
             },

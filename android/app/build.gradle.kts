@@ -6,7 +6,7 @@ plugins {
 
 android {
     namespace = "com.example.flutter_inventory"
-    compileSdk = flutter.compileSdkVersion
+    compileSdk = 35 // <-- GANTI JADI ANGKA 36
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
@@ -14,16 +14,16 @@ android {
         targetCompatibility = JavaVersion.VERSION_17
     }
 
+
     defaultConfig {
-        // TODO: Specify your own unique Application ID (https://developer.android.com/studio/build/application-id.html).
         applicationId = "com.example.flutter_inventory"
-        // You can update the following values to match your application needs.
-        // For more information, see: https://flutter.dev/to/review-gradle-config.
-        minSdk = flutter.minSdkVersion
-        targetSdk = flutter.targetSdkVersion
-        versionCode = flutter.versionCode
-        versionName = flutter.versionName
+        
+        minSdk = flutter.minSdkVersion     // <-- GANTI JADI ANGKA 21
+        targetSdk = 34  // <-- GANTI JADI ANGKA 36
+        versionCode = 1 // <-- GANTI JADI ANGKA 1
+        versionName = "1.0" // <-- GANTI JADI TEKS "1.0"
     }
+
 
     buildTypes {
         release {

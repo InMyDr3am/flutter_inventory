@@ -17,7 +17,6 @@ class Product {
     required this.category,
   });
 
-  // Fungsi untuk menyalin objek dengan perubahan (sangat berguna untuk update stok)
   Product copyWith({
     String? id,
     String? sku,
@@ -33,6 +32,30 @@ class Product {
       stock: stock ?? this.stock,
       price: price ?? this.price,
       category: category ?? this.category,
+    );
+  }
+
+  // 1. Mengubah format Objek Produk menjadi Peta Data (Map) untuk disimpan ke Database
+  Map<String, dynamic> toMap() {
+    return {
+      'id': id,
+      'sku': sku,
+      'name': name,
+      'stock': stock,
+      'price': price,
+      'category': category,
+    };
+  }
+
+  // 2. Mengubah data dari Database (Map) kembali menjadi Objek Produk di Flutter
+  factory Product.fromMap(Map<String, dynamic> map) {
+    return Product(
+      id: map['id'].toString(),
+      sku: map['sku'],
+      name: map['name'],
+      stock: map['stock'] as int,
+      price: (map['price'] as num).toDouble(),
+      category: map['category'],
     );
   }
 }

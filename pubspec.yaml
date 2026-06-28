@@ -30,8 +30,10 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  google_fonts: ^6.1.0 # Untuk tipografi yang elegan
-  iconsax: ^0.0.8 # Ikon modern dan bersih
+  google_fonts: ^6.1.0
+  iconsax: ^0.0.8
+  sqflite: ">=2.3.3+2 <2.4.0"     # <-- Gunakan versi terbaru ini
+  path: ^1.9.0     # Tambahkan ini untuk mengelola lokasi file database
 
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
