@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:iconsax/iconsax.dart';
 import 'package:flutter_inventory/theme/app_theme.dart';
 import 'package:flutter_inventory/screens/stock_management_screen.dart';
+import 'package:flutter_inventory/screens/sales_screeen.dart';
+import 'package:flutter_inventory/screens/purchase_screen.dart';
 
 class DashboardScreen extends StatelessWidget {
   const DashboardScreen({super.key});
@@ -102,20 +104,27 @@ class DashboardScreen extends StatelessWidget {
           icon: menuItems[index]['icon'],
           iconColor: menuItems[index]['color'],
           onTap: () {
-            // === KODE NAVIGASI DIMULAI DI SINI ===
+            // === KODE NAVIGASI ===
             if (menuItems[index]['title'] == 'Kelola Stok') {
-              // Jika yang diklik adalah 'Kelola Stok', buka Halaman Manajemen Stok
               Navigator.push(
                 context,
                 MaterialPageRoute(builder: (context) => const StockManagementScreen()),
               );
+            } else if (menuItems[index]['title'] == 'Penjualan') {
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const SalesScreen()),
+              );
+            } else if (menuItems[index]['title'] == 'Belanja') { // <-- TAMBAHKAN BLOK INI
+              Navigator.push(
+                context,
+                MaterialPageRoute(builder: (context) => const PurchaseScreen()),
+              );
             } else {
-              // Jika menu lain yang diklik, sementara tampilkan pesan ini dulu
               ScaffoldMessenger.of(context).showSnackBar(
                 SnackBar(content: Text('Membuka ${menuItems[index]['title']}...')),
               );
             }
-            // === KODE NAVIGASI SELESAI ===
           },
         );
       },
